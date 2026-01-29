@@ -1,0 +1,8 @@
+[package]
+name = "sihat"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+rodio = {version="0.21.1", features = ["wav"]}
+realfft = "3.5.0"
