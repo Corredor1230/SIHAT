@@ -1,6 +1,7 @@
+#[derive(Default, Debug)]
 pub struct BinFrame
 {
-    freq: f32,
-    amp: f32,
-    phase: f32
+    pub freq: f32,
+    pub phase: f32,
+    pub amp: f32
 }
