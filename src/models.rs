@@ -1,13 +1,17 @@
 pub struct OvertoneSettings
 {
-    pub fft_size: usize
+    pub fft_size: usize,
+    pub n_values: usize,
+    pub threshold: f32
 }
 
 impl Default for OvertoneSettings
 {
     fn default() -> Self {
         OvertoneSettings { 
-            fft_size: 2048 
+            fft_size: 2048, 
+            n_values: 32,
+            threshold: -60.0
         }
     }
 }
