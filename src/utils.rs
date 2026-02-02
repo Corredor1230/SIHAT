@@ -8,18 +8,16 @@ pub fn hann_gain_rms() -> f32
     return 0.5;
 }
 
-pub fn apply_hanning(input: &mut Vec<f32>, n: usize)
+pub fn apply_hanning(input: &mut Vec<f32>)
 {
     //Recasting necessary values as data types
-    let n_double: f64 = n as f64;
-    let m_double: f64 = n as f64 - 1.0;
-
-    for i in 0..n
-    {
-        let angle: f64 = 2.0 * std::f64::consts::PI * n_double / m_double;
+    let m_double = (input.len() - 1) as f64;
+    
+    for (i, sample) in input.iter_mut().enumerate() {
+        let angle = 2.0 * std::f64::consts::PI * (i as f64) / m_double;
         let window_val = 0.5 * (1.0 - angle.cos());
-
-        input[i] = (input[i] as f64 * window_val) as f32;
+        
+        *sample = (*sample as f64 * window_val) as f32;
     }
 }
 
@@ -49,6 +47,15 @@ pub fn bin_i32_to_freq(bin: i32, n: i32, sr:f32) -> f32
     if n == 0 {return 0.0};
     let freq: f32 = sr * bin as f32 / n as f32;
     return freq;
+}
+
+pub fn cents_to_hz(center_freq: f32, cents: f32) -> f32
+{
+    let exp = cents / 1200.0;
+    let r = 2.0_f32.powf(exp);
+    let cents = center_freq * (r - 1.0);
+    let higher = cents.max(1.0e-11);
+    return higher;
 }
 
 //Amplitude
@@ -95,15 +102,31 @@ pub fn get_bin_amp(bin: Complex<f32>, n: usize) -> f32
     return amp;
 }
 
-//Math
-pub fn spectrum_to_bins(spectrum: Vec<Complex<f32>>, n: usize) -> Vec<BinFrame>
+pub fn normalize_audio(audio: &mut Vec<f32>, db: f32)
 {
-    let mut spectral_bins: Vec<BinFrame> = Vec::new();
-    for i in 0..n{
-        let freq = spectrum[i].re;
-        let phase: f32 = spectrum[i].im;
-        let amp: f32 = get_bin_amp(spectrum[i], n);
-        let bin_frame: BinFrame = BinFrame { freq, phase, amp };
+    let target_linear = 10f32.powf(db / 20.0);
+    let current_peak: f32 = audio.iter().fold(0.0f32, |max, &sample| max.max(sample.abs()));
+    if current_peak > 0.0 {
+        let scale_factor = target_linear / current_peak;
+        for sample in audio.iter_mut() {
+            *sample *= scale_factor;
+        }
+    }
+}
+
+//Math
+pub fn spectrum_to_bins(spectrum: &Vec<Complex<f32>>, n: usize, sr: f32) -> Vec<BinFrame>
+{
+    let mut spectral_bins: Vec<BinFrame> = Vec::with_capacity(spectrum.len()); // Optimization: pre-allocate memory
+        let bin_width = sr / n as f32;
+
+    for (i, complex_val) in spectrum.iter().enumerate() {
+        
+        let freq = i as f32 * bin_width;
+        let phase: f32 = complex_val.arg(); 
+        let amp: f32 = get_bin_amp(*complex_val, n);
+
+        let bin_frame = BinFrame { freq, phase, amp };
         spectral_bins.push(bin_frame);
     }
 
@@ -121,3 +144,65 @@ pub fn interp_delta(spectral_bins: &Vec<BinFrame>, index: usize) -> f64
     else {return 0.5 * (m1 - m2) / denom;}
 }
 
+pub fn is_within_tolerance(freq1: f32, freq2: f32, tolerance: f32) -> bool
+{
+    let mut result = false;
+    let substr = freq1 - freq2;
+    if substr.abs() < tolerance {result = true;}
+    return result;
+}
+
+//Finders
+pub fn find_peak_sample(audio: &Vec<f32>, start_sample: usize, end_sample: usize, use_abs: bool) -> usize
+{
+    let mut peak_samp = start_sample;
+    let mut peak_val: f32;
+    if use_abs {peak_val = 0.0;}
+    else {peak_val = -1.0;}
+    let end;
+    let start;
+
+    //Safety checks
+    if end_sample < audio.len() {end = end_sample;}
+    else {end = audio.len();}
+    if start_sample > 0 {start = start_sample;}
+    else {start = 0;}
+
+    for samp in start..end
+    {
+        if use_abs
+        {
+            if audio[samp].abs() > peak_val
+            {
+                peak_val = audio[samp].abs();
+                peak_samp = samp;
+            }
+        }
+        else {
+            if audio[samp] > peak_val{
+                peak_val = audio[samp];
+                peak_samp = samp;
+            }
+        }
+    }  
+    return peak_samp;
+}
+
+pub fn find_previous_zero(audio: &Vec<f32>, start_sample: usize) -> usize
+{
+    let mut zero_sample: usize = 0;
+    let start;
+    if (start_sample > 2) {start = start_sample;}
+    else {start = 2;}
+    for i in start..audio.len()
+    {
+        let zero_found: bool = (audio[i] >= 0.0 && audio[i - 2] <= 0.0) || (audio[i] <= 0.0 && audio[i] >= 0.0);
+
+        if zero_found{
+            if audio[i - 2].abs() <= audio[i - 1].abs() {zero_sample = i - 2;}
+            else {zero_sample = i - 1;}
+            break;
+        }
+    }
+    return zero_sample;
+}
