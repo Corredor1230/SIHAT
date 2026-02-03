@@ -1,3 +1,34 @@
+pub struct CorrelationSettings
+{
+    pub window_size: usize, 
+    pub start_sample: usize, 
+    pub stop_sample: usize, 
+    pub go_left: bool, 
+    pub jump_post_peak: bool, 
+    pub jump_size: usize, 
+    pub use_filter: bool, 
+    pub is_low_pass: bool, 
+    pub cutoff: f32
+}
+
+impl Default for CorrelationSettings
+{
+    fn default() -> Self {
+        CorrelationSettings { 
+            window_size: 200, 
+            start_sample: 10000, 
+            stop_sample: 4000, 
+            go_left: true, 
+            jump_post_peak: true, 
+            jump_size: 160, 
+            use_filter: true, 
+            is_low_pass: true, 
+            cutoff: 2000.0 
+        }
+    }
+}
+
+
 pub struct OvertoneSettings
 {
     pub fft_size: usize,
@@ -30,7 +61,8 @@ pub struct TransientSettings
     pub start_sample: usize,
     pub rms_factor: f64,
     pub rms_threshold: f64,
-    pub correlation_offset: usize
+    pub correlation_offset: usize,
+    pub pitch_multiplier: f32
 }
 
 impl Default for TransientSettings
@@ -45,7 +77,8 @@ impl Default for TransientSettings
             start_sample: 2000,
             rms_factor: 3.0,
             rms_threshold: 0.1,
-            correlation_offset: 100
+            correlation_offset: 100,
+            pitch_multiplier: 8.0
         }
     }
 }
@@ -70,12 +103,17 @@ pub struct AudioInfo
 {
     pub audio_file: Vec<f32>,
     pub sample_rate: f32,
-    pub file_name: String
+    pub file_name: String,
+    pub meta_pitch: f32
 }
 
 impl Default for AudioInfo
 {
     fn default() -> Self {
-        AudioInfo { audio_file: Vec::new(), sample_rate: 44100.0, file_name: "file.wav".to_string() }
+        AudioInfo { 
+            audio_file: Vec::new(), 
+            sample_rate: 44100.0, 
+            file_name: "file.wav".to_string(),
+            meta_pitch: 0.0 }
     }
 }
