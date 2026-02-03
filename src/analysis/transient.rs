@@ -1,6 +1,6 @@
-use crate::{dsp::correlation, models, results::TransientResults, utils::{find_peak_sample, find_previous_zero}};
+use crate::{dsp::{correlation::{self, perform_cross_correlation}, filter}, models::{self, CorrelationSettings}, results::TransientResults, utils::{find_peak_sample, find_previous_zero}};
 
-pub fn process(unit: &models::AudioInfo, settings: &models::TransientSettings) -> TransientResults
+pub fn process(unit: &models::AudioInfo, settings: &models::TransientSettings, pitch: f32) -> TransientResults
 {
     //Initialize values
     let mut t_results: TransientResults = Default::default();
@@ -80,8 +80,25 @@ fn find_init(unit: &models::AudioInfo, settings: &models::TransientSettings, rms
     return zero_samp;
 }
 
-fn find_end(unit: &models::AudioInfo, settings: &models::TransientSettings) -> usize
+fn find_end(unit: &models::AudioInfo, settings: &models::TransientSettings, pitch: f32, t_init: usize) -> usize
 {
+    let expected_period: usize = (unit.sample_rate / pitch) as usize;
+    let jump: usize = expected_period - (expected_period as f32 * 0.1) as usize;
 
+    let corr_settings: CorrelationSettings = CorrelationSettings { 
+        window_size: expected_period, 
+        start_sample: t_init + settings.correlation_offset, 
+        stop_sample: t_init, 
+        go_left: true, 
+        jump_post_peak: true, 
+        jump_size: jump, 
+        use_filter: true, 
+        is_low_pass: true, 
+        cutoff: pitch * 6.0 
+    };
+        
+    let correlation_results = perform_cross_correlation(unit, pitch, &corr_settings);
+
+    return correlation_results.index_list[0];
 }
 
