@@ -206,3 +206,32 @@ pub fn find_previous_zero(audio: &Vec<f32>, start_sample: usize) -> usize
     }
     return zero_sample;
 }
+
+pub fn find_next_zero(audio: &Vec<f32>, start_sample: usize) -> usize
+{
+    let mut zero_sample: usize = 0;
+    for i in start_sample..audio.len()
+    {
+        if i <= 1 {break;}
+        let zero_found = (audio[i] >= 0.0 && audio[i - 2] < 0.0) || (audio[i] <= 0.0 && audio[i - 2] > 0.0);
+
+        if zero_found {
+            if (audio[i - 2].abs() <= audio[i - 1].abs()) {zero_sample = i - 2;}
+            else {zero_sample = i - 1;}
+            break;
+        }
+    }
+
+    return zero_sample;
+}
+
+pub fn find_nearest_zero(audio: &Vec<f32>, start_sample: usize) -> usize
+{
+    let prev_zero = find_previous_zero(audio, start_sample);
+    let next_zero = find_next_zero(audio, start_sample);
+    let distance_prev = start_sample.abs_diff(prev_zero);
+    let distance_next = start_sample.abs_diff(next_zero);
+
+    if distance_prev < distance_next{return prev_zero;}
+    else {return  next_zero;}
+}
