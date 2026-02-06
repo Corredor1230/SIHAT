@@ -12,30 +12,30 @@ pub fn filtfilt(input: &mut Vec<f32>, sr: f32, cutoff_freq: f32)
     let a1: f64 = (u - 1.0) / common;
     let mut out: Vec<f64> = input.iter().map(|&x| x as f64).collect();
     let n = input.len();
-    let mut xPrev = input[0] as f64;
-    let mut yPrev = input[0] as f64;
+    let mut x_prev = input[0] as f64;
+    let mut y_prev = input[0] as f64;
 
     for i in 0..n{
-        let xCurr = input[i] as f64;
-        let yCurr = (b0 * xCurr) + (b1 * xPrev) - (a1 * yPrev);
+        let x_curr = input[i] as f64;
+        let y_curr = (b0 * x_curr) + (b1 * x_prev) - (a1 * y_prev);
 
-        out[i] = yCurr;
+        out[i] = y_curr;
 
-        xPrev = xCurr;
-        yPrev = yCurr;
+        x_prev = x_curr;
+        y_prev = y_curr;
     }
 
-    xPrev = out[n - 1];
-    yPrev = out[n - 1];
+    x_prev = out[n - 1];
+    y_prev = out[n - 1];
 
     for i in (0..(n - 1)).rev(){
-        let xCurr = out[i];
-        let yCurr = (b0* xCurr) + (b1 * xPrev) - (a1 * yPrev);
+        let x_curr = out[i];
+        let y_curr = (b0* x_curr) + (b1 * x_prev) - (a1 * y_prev);
 
-        out[i] = yCurr;
+        out[i] = y_curr;
 
-        xPrev = xCurr;
-        yPrev = yCurr;
+        x_prev = x_curr;
+        y_prev = y_curr;
     }
 
     *input = out.iter().map(|&x| x as f32).collect();
