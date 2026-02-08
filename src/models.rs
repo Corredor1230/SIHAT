@@ -8,6 +8,7 @@ pub struct CorrelationSettings
     pub jump_size: usize, 
     pub use_filter: bool, 
     pub is_low_pass: bool, 
+    pub threshold: f32,
     pub cutoff: f32
 }
 
@@ -23,6 +24,7 @@ impl Default for CorrelationSettings
             jump_size: 160, 
             use_filter: true, 
             is_low_pass: true, 
+            threshold: 0.95,
             cutoff: 2000.0 
         }
     }
@@ -62,6 +64,7 @@ pub struct TransientSettings
     pub rms_factor: f64,
     pub rms_threshold: f64,
     pub correlation_offset: usize,
+    pub correlation_threshold: f32,
     pub pitch_multiplier: f32
 }
 
@@ -77,7 +80,8 @@ impl Default for TransientSettings
             start_sample: 2000,
             rms_factor: 3.0,
             rms_threshold: 0.1,
-            correlation_offset: 100,
+            correlation_offset: 1000,
+            correlation_threshold: 0.85,
             pitch_multiplier: 8.0
         }
     }
