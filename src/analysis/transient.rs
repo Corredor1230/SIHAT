@@ -1,4 +1,4 @@
-use crate::{dsp::{correlation::{self, perform_cross_correlation}, filter}, models::{self, CorrelationSettings}, results::TransientResults, utils::{find_peak_sample, find_previous_zero}};
+use crate::{dsp::correlation:: perform_self_correlation, models::{self, CorrelationSettings}, results::TransientResults, structures::SampleValueList, utils::{find_peak_sample, find_previous_zero}};
 
 pub fn process(unit: &models::AudioInfo, settings: &models::TransientSettings, pitch: f32) -> TransientResults
 {
@@ -14,6 +14,7 @@ pub fn process(unit: &models::AudioInfo, settings: &models::TransientSettings, p
 
     //Find the initial sample
     t_results.range.init = find_init(unit, settings, rms_size);
+    t_results.range.end = find_end(unit, settings, pitch, t_results.range.init);
 
     return t_results;
 }
@@ -28,8 +29,9 @@ fn find_init(unit: &models::AudioInfo, settings: &models::TransientSettings, rms
     let mut found: bool = false;
     let max_samp: usize = unit.audio_file.len() / 4;
     let mut t_init_sample: usize = 0;
+    let mut samp = start_sample;
 
-    for samp in start_sample..max_samp
+    while samp < max_samp
     {
         let mut sum: f64 = 0.0;
         let mut temp_rms: Vec<f64> = vec![0.0; rms_size];
@@ -66,7 +68,10 @@ fn find_init(unit: &models::AudioInfo, settings: &models::TransientSettings, rms
         {
             found = true;
             t_init_sample = samp;
+            break;
         }
+
+        samp += settings.hop_size;
     }
 
     if !found {
@@ -83,7 +88,7 @@ fn find_init(unit: &models::AudioInfo, settings: &models::TransientSettings, rms
 fn find_end(unit: &models::AudioInfo, settings: &models::TransientSettings, pitch: f32, t_init: usize) -> usize
 {
     let expected_period: usize = (unit.sample_rate / pitch) as usize;
-    let jump: usize = expected_period - (expected_period as f32 * 0.1) as usize;
+    let jump: usize = expected_period - (expected_period as f32 * 0.25) as usize;
 
     let corr_settings: CorrelationSettings = CorrelationSettings { 
         window_size: expected_period, 
@@ -94,10 +99,11 @@ fn find_end(unit: &models::AudioInfo, settings: &models::TransientSettings, pitc
         jump_size: jump, 
         use_filter: true, 
         is_low_pass: true, 
+        threshold: 0.8,
         cutoff: pitch * 6.0 
     };
         
-    let correlation_results = perform_cross_correlation(unit, pitch, &corr_settings);
+    let correlation_results = perform_self_correlation(unit, pitch, &corr_settings);
 
     return correlation_results.index_list[0];
 }
