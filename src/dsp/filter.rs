@@ -1,7 +1,7 @@
 pub fn filtfilt(input: &mut Vec<f32>, sr: f32, cutoff_freq: f32)
 {
     assert!(!input.is_empty());
-    assert!(input.len() < 2);
+    //assert!(input.len() < 2);
 
     let inner_u = std::f64::consts::PI * cutoff_freq as f64 / sr as f64;
     let u = inner_u.tan();
