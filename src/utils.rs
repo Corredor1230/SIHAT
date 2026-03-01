@@ -8,7 +8,7 @@ pub fn hann_gain_rms() -> f32
     return 0.5;
 }
 
-pub fn apply_hanning(input: &mut Vec<f32>)
+pub fn apply_hanning(input: &mut [f32])
 {
     //Recasting necessary values as data types
     let m_double = (input.len() - 1) as f64;
@@ -35,14 +35,14 @@ pub fn hz_to_midi(freq: f32) -> f32
     return midi;
 }
 
-pub fn freq_to_bin(freq: f32, n: i32, sr: f32) -> i32
+pub fn hz_to_bin(freq: f32, n: usize, sr: f32) -> usize
 {
     let div: f32 = freq * n as f32 / sr;
-    let bin: i32 = div.round() as i32;
+    let bin: usize = div.round() as usize;
     return bin;
 }
 
-pub fn bin_i32_to_freq(bin: i32, n: i32, sr:f32) -> f32
+pub fn bin_to_hz(bin: usize, n: usize, sr:f32) -> f32
 {
     if n == 0 {return 0.0};
     let freq: f32 = sr * bin as f32 / n as f32;
@@ -86,6 +86,12 @@ pub fn amp_to_db(amp: f32) -> f32
     return db;
 }
 
+pub fn cmplx_to_amp(im: f32, re: f32, nfft: usize) -> f32
+{
+    let mag = (im * im + re * re).sqrt();
+    return mag_to_amp(mag, nfft);
+}
+
 pub fn get_bin_mag(bin: Complex<f32>) -> f32
 {
     let re: f32 = bin.re;
@@ -115,41 +121,72 @@ pub fn normalize_audio(audio: &mut Vec<f32>, db: f32)
 }
 
 //Math
-pub fn spectrum_to_bins(spectrum: &Vec<Complex<f32>>, n: usize, sr: f32) -> Vec<BinFrame>
-{
-    let mut spectral_bins: Vec<BinFrame> = Vec::with_capacity(spectrum.len()); // Optimization: pre-allocate memory
-        let bin_width = sr / n as f32;
-
-    for (i, complex_val) in spectrum.iter().enumerate() {
-        
-        let freq = i as f32 * bin_width;
-        let phase: f32 = complex_val.arg(); 
-        let amp: f32 = get_bin_amp(*complex_val, n);
-
-        let bin_frame = BinFrame { freq, phase, amp };
-        spectral_bins.push(bin_frame);
-    }
-
-    return spectral_bins;
-}
-
-pub fn interp_delta(spectral_bins: &Vec<BinFrame>, index: usize) -> f64
-{
-    if index <= 0 || index > spectral_bins.len() {return 0.0;}
-    let m1: f64 = spectral_bins[index].amp as f64;
-    let m0: f64 = spectral_bins[index - 1].amp as f64;
-    let m2: f64 = spectral_bins[index + 1].amp as f64;
-    let denom: f64 = m1 - 2.0 * m0 + m2;
-    if denom.abs() < 1.0e-20 {return 0.0;}
-    else {return 0.5 * (m1 - m2) / denom;}
-}
-
 pub fn is_within_tolerance(freq1: f32, freq2: f32, tolerance: f32) -> bool
 {
     let mut result = false;
     let substr = freq1 - freq2;
     if substr.abs() < tolerance {result = true;}
     return result;
+}
+
+pub fn next_power_of_usize(val: usize, base: usize) -> usize
+{
+    if val < 0{
+        panic!("Non-positive size");
+    }
+    let mut next_power = base;
+    for i in 1..32{
+        let prev_exp: f32 = i as f32 - 1.0;
+        let prev_pow: usize = (base as f32).powf(prev_exp).round() as usize;
+        let curr_exp: f32 = i as f32;
+        let curr_pow: usize = (base as f32).powf(curr_exp).round() as usize;
+
+        if val > prev_pow && val < curr_pow {next_power = curr_pow;}
+    }
+
+    return next_power;
+}
+
+pub fn prev_power_of_usize(val: usize, base: usize) -> usize
+{
+    if val < 0  {panic!("Non-positive usize");}
+    let mut prev_power: usize = base;
+    for i in 1..32{
+        let prev_exp: f32 = i as f32 - 1.0;
+        let prev_pow: usize = (base as f32).powf(prev_exp).round() as usize;
+        let curr_exp: f32 = i as f32;
+        let curr_pow: usize = (base as f32).powf(curr_exp).round() as usize;
+
+        if val > prev_pow && val < curr_pow {prev_power = prev_pow;}
+    }
+
+    return prev_power;
+}
+
+pub fn closest_power_of_usize(val: usize, base: usize) -> usize
+{
+    if val < 0  {panic!("Non-positive usize");}
+    let mut prev_power: usize = base;
+    let mut next_power: usize = base;
+    for i in 1..32{
+        let prev_exp: f32 = i as f32 - 1.0;
+        let prev_pow: usize = (base as f32).powf(prev_exp).round() as usize;
+        let curr_exp: f32 = i as f32;
+        let curr_pow: usize = (base as f32).powf(curr_exp).round() as usize;
+
+        if val > prev_pow && val < curr_pow {
+            prev_power = prev_pow;
+            next_power = curr_pow;
+        }
+    }
+
+    let mut closest: usize = prev_power;
+
+    if val.abs_diff(next_power) < val.abs_diff(prev_power) {
+        closest = next_power;
+    }
+
+    return closest;
 }
 
 //Finders
@@ -188,11 +225,26 @@ pub fn find_peak_sample(audio: &Vec<f32>, start_sample: usize, end_sample: usize
     return peak_samp;
 }
 
+pub fn find_peak_index_vector(input: &[f32]) -> usize
+{
+    let mut max_val: f32 = 0.0;
+    let mut out_index: usize = 0;
+    for i in 0..input.len(){
+        if input[i] > max_val{
+            max_val = input[i];
+            out_index = i;
+        }
+        else {continue;}
+    }
+
+    return out_index;
+}
+
 pub fn find_previous_zero(audio: &Vec<f32>, start_sample: usize) -> usize
 {
     let mut zero_sample: usize = 0;
     let start;
-    if (start_sample > 2) {start = start_sample;}
+    if start_sample > 2 {start = start_sample;}
     else {start = 2;}
     for i in start..audio.len()
     {
@@ -216,7 +268,7 @@ pub fn find_next_zero(audio: &Vec<f32>, start_sample: usize) -> usize
         let zero_found = (audio[i] >= 0.0 && audio[i - 2] < 0.0) || (audio[i] <= 0.0 && audio[i - 2] > 0.0);
 
         if zero_found {
-            if (audio[i - 2].abs() <= audio[i - 1].abs()) {zero_sample = i - 2;}
+            if audio[i - 2].abs() <= audio[i - 1].abs() {zero_sample = i - 2;}
             else {zero_sample = i - 1;}
             break;
         }
