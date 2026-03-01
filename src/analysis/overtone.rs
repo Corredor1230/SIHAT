@@ -1,40 +1,27 @@
-use realfft::{RealFftPlanner};
+use crate::dsp::stft::{FftContext, get_complex_spectrum, spectrum_to_bins, interp_delta};
 use crate::models;
 use crate::models::OvertoneSettings;
 use crate::structures::BinFrame;
-use crate::utils::apply_hanning;
 use crate::utils::cents_to_hz;
 use crate::utils::db_to_amp;
-use crate::utils::interp_delta;
 use crate::utils::is_within_tolerance;
-use crate::utils::spectrum_to_bins;
 
-pub fn process(unit: &models::AudioInfo, settings: &models::OvertoneSettings) -> Vec<BinFrame>
+pub fn process(unit: &models::AudioInfo, settings: &models::OvertoneSettings, context: &mut FftContext) -> Vec<BinFrame>
 {
     //Value initialization
     let len = settings.fft_size;
     let init: usize = settings.init_sample;
     let sr: f32 = unit.sample_rate;
 
-    //FFT setup
-    let mut planner = RealFftPlanner::<f32>::new();
-    let fft = planner.plan_fft_forward(len);
+    let audio_data = &unit.audio_file[init..(init + len)];
 
-    //Handle data from audio
-    let mut indata = unit.audio_file[init..(len + init)].to_vec();
-    let mut spectrum: Vec<realfft::num_complex::Complex<f32>> = fft.make_output_vec();
-
-    //Error checking
-    assert_eq!(indata.len(), len);
-    assert_eq!(spectrum.len(), len/2 + 1);
-
-    //Apply hann
-    apply_hanning(&mut indata);
-
-    fft.process(&mut indata, &mut spectrum).unwrap();
+    //let mut context: FftContext = FftContext::new();
 
     //Decompose spectrogram into BinFrames
-    let spectral_bins: Vec<BinFrame> = spectrum_to_bins(&spectrum, len, sr);
+
+    let complex_data = get_complex_spectrum(&audio_data, len, context);
+
+    let spectral_bins: Vec<BinFrame> = spectrum_to_bins(&complex_data, len, sr);
 
     let results = find_relevant_overtones(spectral_bins, sr as f64, &settings);
 
@@ -93,6 +80,6 @@ fn find_relevant_overtones(s_bins: Vec<BinFrame>, sr: f64, settings: &OvertoneSe
         }
     }
 
-    candidates.sort_by(|a, b| b.freq.partial_cmp(&a.freq).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| b.freq.partial_cmp(&a.freq).unwrap_or(std::cmp::Ordering::Equal));
     return results;
 }
