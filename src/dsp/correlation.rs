@@ -1,29 +1,20 @@
-use crate::{dsp::filter::filtfilt, models::{AudioInfo, CorrelationSettings}, structures::SampleValueList, utils::{find_nearest_zero, find_peak_sample, find_previous_zero}};
+use crate::{dsp::filter::filtfilt, models::{AudioInfo, CorrelationSettings}, structures::SampleValueList, utils::{find_nearest_zero}};
 
-pub fn perform_self_correlation(unit: &AudioInfo, pitch: f32, settings: &CorrelationSettings) -> SampleValueList
+pub fn perform_self_correlation(unit: &AudioInfo, settings: &CorrelationSettings) -> SampleValueList
 {
     //Initialize
     let sr = unit.sample_rate;
     let mut index_list: Vec<usize> = Vec::new();
     let mut value_list: Vec<f32> = Vec::new();
-    let expected_period: usize = (sr / pitch) as usize;
     let sliding_size: isize = if settings.jump_post_peak {settings.jump_size as isize} else if settings.go_left {-1} else {1};
 
-    let peak_sample = find_peak_sample(
-        &unit.audio_file, 
-        settings.start_sample, 
-        settings.start_sample + expected_period * 2, 
-        true
-    );
-
     //Find samples
-    let corr_start = find_previous_zero(&unit.audio_file, peak_sample);
-    let first_w_end: usize = find_nearest_zero(&unit.audio_file, corr_start + expected_period);
+    let corr_start = settings.start_sample;
 
     // Initial Window Setup
-    let window_len = first_w_end - corr_start;
-    let mut window: Vec<f32> = unit.audio_file[corr_start..first_w_end].to_vec();
-    let mut comparative: Vec<f32> = unit.audio_file[corr_start..first_w_end].to_vec();
+    let window_len = settings.window_size;
+    let mut window: Vec<f32> = unit.audio_file[corr_start..corr_start + window_len].to_vec();
+    let mut comparative: Vec<f32> = unit.audio_file[corr_start..corr_start + window_len].to_vec();
 
     if settings.use_filter {
         filtfilt(&mut window, sr, settings.cutoff);
