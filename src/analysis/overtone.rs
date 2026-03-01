@@ -80,6 +80,6 @@ fn find_relevant_overtones(s_bins: Vec<BinFrame>, sr: f64, settings: &OvertoneSe
         }
     }
 
-    results.sort_by(|a, b| b.freq.partial_cmp(&a.freq).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| a.freq.partial_cmp(&b.freq).unwrap_or(std::cmp::Ordering::Equal));
     return results;
 }
