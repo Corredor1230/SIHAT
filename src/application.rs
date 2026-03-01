@@ -2,7 +2,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
 use rodio::{Decoder, Source};
-use crate::{analysis::analyzer, models::{AudioInfo, SihatSettings}, utils::normalize_audio};
+use crate::{analysis::analyzer, dsp::stft::FftContext, models::{AudioInfo, SihatSettings}, utils::normalize_audio};
 
 pub fn run()
 {
@@ -29,6 +29,8 @@ pub fn run()
 
     println!("Channels: {}, Sample Rate: {}", channels, sample_rate);
 
+    let mut context: FftContext = FftContext::new();
+
     let settings: SihatSettings = Default::default();
-    analyzer::analyze(&audio_info, &settings);
+    analyzer::analyze(&audio_info, &settings, &mut context);
 }
