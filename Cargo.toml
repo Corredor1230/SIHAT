@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 rodio = {version="0.21.1", features = ["wav"]}
 realfft = "3.5.0"
+rustfft = "6.4.1"
 
 [profile.dev]
 opt-level = 0    # Must be 0 for full debugging
